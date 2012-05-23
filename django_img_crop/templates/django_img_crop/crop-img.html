@@ -1,0 +1,87 @@
+{% extends "admin/base.html" %}
+{% load i18n %}
+
+{% block breadcrumbs %}{% endblock %}
+
+{% block extrahead %}
+	<link rel="stylesheet" href="{{ STATIC_URL }}css/jquery.Jcrop.css" type="text/css" />
+	<script type="text/javascript" src="{{ STATIC_URL }}admin/js/jquery.min.js"></script>
+	<script type="text/javascript" src="{{ STATIC_URL }}js/jquery.Jcrop.min.js"></script>
+	<script type="text/javascript">
+		jQuery(function($) {
+			var cropped_image_rel_path = '{{ cropped_image_rel_path }}';
+			{% if request.method != 'POST' %}
+				var select_dimensions = [0, 0, {{ select_size.0 }}, {{ select_size.1 }}];
+			{% else %}
+				var select_dimensions = [
+					{{ request.POST.x1 }}, 
+					{{ request.POST.y1 }}, 
+					{{ request.POST.x2 }}, 
+					{{ request.POST.y2 }}
+				];
+			{% endif %}
+			
+			$('#image_to_crop').Jcrop({
+				aspectRatio: {{ DIC_IMG_CROP_SIZE.0 }} / {{ DIC_IMG_CROP_SIZE.1 }},
+				setSelect: select_dimensions,
+				minSize: [{{ select_size.0 }}, {{ select_size.1 }}],
+				allowSelect: false,
+				onSelect: setCoords,
+				onChange: setCoords
+			});
+			
+			{% if can_save %}
+				$('#save').click(function() {
+					var img_field = window.opener.parent.document.getElementById(window.name)
+					img_field.value = cropped_image_rel_path;
+					$(img_field).siblings('img').remove();
+					$(img_field).after('<img src="'+ $('#cropped_image').attr('src') +'" />');
+					window.close();
+				});
+			{% endif %}
+		});
+		
+		function setCoords(c)
+		{
+			$('#x1').val(c.x);
+			$('#y1').val(c.y);
+			$('#x2').val(c.x2);
+			$('#y2').val(c.y2);
+			$('#w').val(c.w);
+			$('#h').val(c.h);
+		}
+	</script>
+{% endblock %}
+
+{% block content %}
+	<h1>{% trans "Crop image" %}</h1>
+	
+	{% if cropped_image_url %}
+		<h2>{% trans "Cropped image" %}</h2>
+		<img src="{{ cropped_image_url }}?no-cache={% now "dmYHis" %}" id="cropped_image" />
+		
+		{% if can_save %}
+			<p><button id="save">{% trans "Save and close" %}</button></p>
+		{% endif %}
+	{% endif %}
+	
+	<h2>{% trans "Standard image" %}</h2>
+	<img src="{{ image_url }}" id="image_to_crop" style="width: {{ image_size.0 }}px;" />
+	<form action="" method="post">
+		{% csrf_token %}
+		<input type="hidden" name="x1" id="x1"/>
+		<input type="hidden" name="y1" id="y1"/>
+		<input type="hidden" name="x2" id="x2"/>
+		<input type="hidden" name="y2" id="y2"/>
+		<input type="hidden" name="w" id="w" />
+		<input type="hidden" name="h" id="h" />
+		<input type="submit" value="{% trans 'Crop' %}" />
+	</form>
+	<p class="hint">
+		{% blocktrans with DIC_IMG_CROP_SIZE.0 as w and DIC_IMG_CROP_SIZE.1 as h %}
+			Selected area will be scaled to {{ w }}x{{ h }} px
+		{% endblocktrans %}
+	</p>
+	
+	
+{% endblock %}
